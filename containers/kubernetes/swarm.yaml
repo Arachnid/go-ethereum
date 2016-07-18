@@ -1,0 +1,24 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: swarm
+spec:
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: swarm-geth
+    spec:
+      containers:
+      - name: swarm-geth
+        image: arachnid/swarm:latest
+        args: [ "--bootnodes=enode://$(BOOTNODE_ID)@$(BOOTNODE_SERVICE_PORT_30301_UDP_ADDR):$(BOOTNODE_SERVICE_PORT_30301_UDP_PORT)"]
+        env:
+        - name: BOOTNODE_ID
+          valueFrom:
+            configMapKeyRef:
+              name: swarm-config
+              key: bootnode-id
+        ports:
+        - containerPort: 30303
+        - containerPort: 8545

@@ -1,0 +1,16 @@
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: bootnodes
+spec:
+  replicas: 1
+  template:
+    metadata:
+      labels:
+        app: ethereum-bootnode
+    spec:
+      containers:
+      - name: bootnode
+        image: arachnid/ethereum-bootnode:latest
+        ports:
+        - containerPort: 30301
