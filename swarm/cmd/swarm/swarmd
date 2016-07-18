@@ -1,0 +1,347 @@
+#!/bin/bash
+
+if [ "$SWARM_DOCKER_TAG" = "" ]; then export SWARM_DOCKER_TAG="arachnid/swarm:latest"; fi
+if [ "$DOCKER" == "" ]; then export DOCKER="docker"; fi
+
+CONTAINER_DATADIR="/swarm/data"
+CONTAINER_SOCKET="$CONTAINER_DATADIR/geth.ipc"
+GETH="/geth --datadir=$CONTAINER_DATADIR"
+
+root=$SWARM_DIR
+cmd=$1
+shift
+
+dir="$root/$network_id"
+
+tmpdir=/tmp
+
+# swarm container 00 returns the id of the docker container for node n
+function container {
+  $DOCKER ps -a --filter="label=swarm" --filter="label=id=$1" --format="{{.ID}}"
+}
+
+# swarm containers returns the IDs of all docker containers for the swarm
+function containers {
+  $DOCKER ps -a --filter="label=swarm" --format="{{.ID}}"
+}
+
+# returns the node number of a container
+function nodenum {
+  $DOCKER inspect --format "{{.Config.Labels.id}}" $1
+}
+
+function dockerexec {
+  id=$1
+  shift
+  if [ "$id" = "all" ]; then
+    for containerid in $(containers); do
+      $DOCKER exec -it $containerid $*
+    done
+  else
+    $DOCKER exec -it $(container $id) $*
+  fi
+}
+
+function dgeth {
+  id=$1
+  shift
+  dockerexec $id $GETH $*
+}
+
+# swarm attach 00 brings up a console attached to a running instance
+function attach {
+  echo "attaching console to instance $id"
+  dgeth $1 attach ipc:/$CONTAINER_SOCKET
+ }
+
+# swarm execute 00 runs the specified command in an instance
+function execute {
+  id=$1
+  shift
+  dgeth $id --exec "$*" attach ipc:/$CONTAINER_SOCKET
+}
+
+# swarm hive 00 displays the kademlia table of the given running instance
+function hive {
+  execute $1 'console.log(bzz.hive)'|grep -v undefined
+}
+
+# swarm log 00 shows the running tail logs of an instance
+function log {
+  id=$1
+  shift
+  echo "streaming logs for instance $id"
+  $DOCKER logs -f $(container $id)
+}
+
+# display kademlia tables of istances
+function monitor {
+  if [ "$3" = "" ]; then
+    id=$1
+    period=$2
+    while true; do
+      hive $id
+      sleep $period
+    done
+  else
+    #TODO: FIXME
+    node=$1
+    id=$2
+    period=$3
+    while true; do
+      remote-run $node swarm hive $id
+      sleep $period
+    done
+  fi
+}
+
+# swarm cleanbzz 00 removes the bzz subdirectory for a given instance (all for every instance)
+function cleanbzz {
+  id=$1
+  shift
+  echo "remove bzz data for instance $id"
+  dockerexec $id rm -rf /swarm/data/bzz
+}
+
+# swarm less/viewlog 00 displays the last (current) log for the given instance (in a pager)
+function viewlog {
+  id=$1
+  shift
+  echo "viewing logs for instance $id"
+  $DOCKER logs $(container $id) | less
+}
+
+# display the swarm base account for an instance
+function key {
+  execute $1 eth.accounts[0]
+}
+
+function enode {
+  containerid=$(container $1)
+  ip=$($DOCKER inspect --format="{{.NetworkSettings.IPAddress}}" $containerid)
+  $DOCKER exec $containerid $GETH --exec='admin.nodeInfo.enode' attach ipc:/$CONTAINER_SOCKET |perl -pe "s/\[\:\:\]/$ip/ "
+}
+
+# swarm options 00 displays the docker command line options used to start the swarm
+function rawoptions {
+  id=$1
+  shift
+
+  options="--name=swarm_$id --label="swarm" --label="id=$id" $SWARM_DOCKER_TAG --nodiscover"
+  echo -n $options
+  echo $*
+}
+
+function options {
+  echo "The command line options passed to 'docker run' are the following:"
+  rawoptions $*
+}
+
+function startcontainer {
+  containerid=$1
+  shift
+  id=$(nodenum $containerid)
+
+  livenodes=$($DOCKER ps --filter="label=swarm" --format="{{.ID}}")
+
+  status=`$DOCKER inspect --format="{{.State.Status}}" $containerid`
+  if [ "$status" = "running" ]; then
+    echo "instance $(nodenum $containerid) already running"
+    return
+  fi
+
+  $DOCKER start $containerid >/dev/null
+
+  # wait until ready
+  ((j=0))
+  while true; do
+    execute $id "net" >/dev/null 2>&1 && break
+    sleep 1
+    echo -n "."
+    if ((j++>10)); then
+      echo "instance $id failed to start"
+      exit 1
+    fi
+  done
+
+  # add other peers
+  for othercontainerid in $livenodes; do
+    otherid=$(nodenum $othercontainerid)
+    otherenode=$(enode $otherid)
+    execute $id "admin.addPeer($otherenode)" >/dev/null
+  done
+}
+
+function start {
+  id=$1
+  shift
+
+  if [ "$id" = "all" ]; then
+    for containerid in $(containers); do
+      startcontainer $containerid
+      echo "started instance $(nodenum $containerid)"
+    done
+    echo "started all instances"
+  else
+    startcontainer $(container $id)
+    echo "started instance $id"
+  fi
+}
+
+
+# setup 00 creates the docker container for an instance
+function setup {
+  id=$1
+  shift
+  $DOCKER create $(rawoptions $id) >/dev/null
+}
+
+function stopcontainer {
+  containerid=$1
+  shift
+  status=`$DOCKER inspect --format="{{.State.Status}}" $containerid`
+  if [ "$status" = "running" ]; then
+    echo "stopping instance $(nodenum $containerid)"
+    $DOCKER stop $containerid >/dev/null
+  fi  
+}
+
+# shuts down a running instance
+function stop {
+  id=$1
+  shift
+  if [ "$id" = "all" ]; then
+    for containerid in $(containers); do
+      stopcontainer $containerid
+    done
+  else
+    stopcontainer $(container $id)
+  fi
+}
+
+# swarm restart 00 calls stop and start
+function restart {
+  id=$1
+  shift
+  stop $id
+  start $id $*
+}
+
+# swarm init X sets up and starts a new cluster
+##########################################################
+#
+# IT WIPES THE DATABASE
+#
+##########################################################
+function init {
+  destroy all
+  cluster $*
+}
+
+function destroy {
+  id=$1
+  shift
+  stop $id
+  if [ "$id" = "all" ]; then
+    for containerid in $(containers); do
+      $DOCKER rm $containerid
+    done
+  else
+    containerid=$(container id)
+    $DOCKER rm $containerid
+  fi
+}
+
+# reset replaces a node with a blank instance
+function reset {
+  destroy $1
+  setup $1
+}
+
+# swarm cluster N launches N nodes; 00 01 02 ...
+function cluster {
+  N=$1
+  shift
+  echo "launching cluster of $N instances"
+  for ((i=0;i<N;++i)); do
+    id=`printf "%02d" $i`
+    setup $id $*
+  done
+  start all
+}
+
+# live into about an instance
+function status {
+  echo -n "account balance:     "
+  execute $1 'eth.getBalance(eth.accounts[0])'
+  echo -n "swap contract balance:       "
+  execute $1 "eth.getBalance(bzz.info.Swap.Contract)"
+  echo -n "chequebook balance:  "
+  execute $1 "chequebook.balance"
+  echo -n "peer count:          "
+  execute $1 'net.peerCount'
+  echo -n "latest block number: "
+  execute $1 "eth.blockNumber"
+}
+
+# display peers for an instance
+function peers {
+  execute $1 'admin.peers'
+}
+
+case $cmd in
+  "container" )
+    container $*;;
+  "containers" )
+    containers;;
+  "info" )
+    info $*;;
+  "enode" )
+    enode $*;;
+  "status" )
+    status $*;;
+  "peers" )
+    peers $*;;
+  "needs" )
+    needs $*;;
+  "init" )
+    init $*;;
+  "exec" )
+    execute $*;;
+  "hive" )
+    hive $*;;
+  "start" )
+    start $*;;
+  "stop" )
+    stop $* ;;
+  "restart" )
+    restart $*;;
+  "destroy" )
+    destroy $*;;
+  "reset" )
+    reset $*;;
+  "cluster" )
+    cluster $*;;
+  "attach" )
+    attach $*;;
+  "execute" )
+    execute $*;;
+  "exec" )
+    execute $*;;
+  "cleanbzz" )
+    cleanbzz $*;;
+  "log" )
+    log $*;;
+  "viewlog" )
+    viewlog $*;;
+  "less" )
+    viewlog $*;;
+  "monitor" )
+    monitor $*;;
+  "options" )
+    options $*;;
+  "rawoptions" )
+    rawoptions $*;;
+  "setup" )
+    setup $* ;;
+esac
