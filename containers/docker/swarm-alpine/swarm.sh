@@ -30,8 +30,6 @@ fi
         --datadir=/swarm/data \
         --bzzaccount=0 \
         --unlock=0 \
-        --port=30303 \
-        --bzzport=32200 \
         --nat=none \
         --rpc \
         --rpcaddr="0.0.0.0" \

@@ -19,7 +19,9 @@ RUN \
 RUN apk add --update bash jq
 
 # Export the usual networking ports to allow outside access to the node
-EXPOSE 30301
+EXPOSE 30301/udp
+
+ADD index.html /www/index.html
 
 # Inject the startup script
 ADD bootnode.sh /bootnode.sh
