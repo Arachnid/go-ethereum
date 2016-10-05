@@ -20,6 +20,7 @@ package state
 import (
 	"fmt"
 	"math/big"
+	"sort"
 	"sync"
 
 	"github.com/ethereum/go-ethereum/common"
@@ -46,6 +47,11 @@ const (
 	codeSizeCacheSize = 100000
 )
 
+type snapshot struct {
+	id           int
+	journalIndex int
+}
+
 // StateDBs within the ethereum protocol are used to store anything
 // within the merkle trie. StateDBs take care of caching and storing
 // nested states. It's the general query interface to retrieve:
@@ -71,7 +77,9 @@ type StateDB struct {
 
 	// Journal of state modifications. This is the backbone of
 	// Snapshot and RevertToSnapshot.
-	journal journal
+	journal        journal
+	validSnapshots []snapshot
+	nextSnapshotId int
 
 	lock sync.Mutex
 }
@@ -472,14 +480,29 @@ func (self *StateDB) Copy() *StateDB {
 
 // Snapshot returns an identifier for the current revision of the state.
 func (self *StateDB) Snapshot() int {
-	return len(self.journal)
+	id := self.nextSnapshotId
+	self.nextSnapshotId++
+	self.validSnapshots = append(self.validSnapshots, snapshot{id, len(self.journal)})
+	return id
 }
 
 // RevertToSnapshot reverts all state changes made since the given revision.
-func (self *StateDB) RevertToSnapshot(snapshot int) {
+func (self *StateDB) RevertToSnapshot(snapshotId int) {
+	// Find the snapshot in the stack of valid snapshots
+	idx := sort.Search(len(self.validSnapshots), func(i int) bool { return self.validSnapshots[i].id >= snapshotId })
+	if idx == len(self.validSnapshots) || self.validSnapshots[idx].id != snapshotId {
+		panic(fmt.Errorf("Invalid snapshot id %v", snapshotId))
+	}
+	snapshot := self.validSnapshots[idx].journalIndex
+
+	// Replay the journal to undo changes
 	for i := len(self.journal) - 1; i >= snapshot; i-- {
 		self.journal[i].undo(self)
 	}
+
+	// Remove invalidated snapshots from the stack
+	self.validSnapshots = self.validSnapshots[:idx]
+
 	self.journal = self.journal[:snapshot]
 }
 
