@@ -22,6 +22,7 @@ import (
 	"math/big"
 	"sort"
 	"sync"
+	"time"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/vm"
@@ -29,6 +30,7 @@ import (
 	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/logger"
 	"github.com/ethereum/go-ethereum/logger/glog"
+	"github.com/ethereum/go-ethereum/metrics"
 	"github.com/ethereum/go-ethereum/rlp"
 	"github.com/ethereum/go-ethereum/trie"
 	lru "github.com/hashicorp/golang-lru"
@@ -42,6 +44,10 @@ var StartingNonce uint64
 var MaxTrieCacheGen = uint16(120)
 
 var accountCacheKeyPrefix = []byte("accountcache:")
+
+var directCacheWrites = metrics.NewCounter("directcache/writes")
+var directCacheHitTimer = metrics.NewTimer("directcache/timer/hits")
+var directCacheMissTimer = metrics.NewTimer("directcache/timer/misses")
 
 const (
 	// Number of past tries to keep. This value is chosen such that
@@ -398,11 +404,17 @@ func (self *StateDB) GetStateObject(addr common.Address) (stateObject *StateObje
 		return obj
 	}
 
+	bstart := time.Now()
 	var data Account
-	if cached := self.readAccountCache(addr); cached != nil {
+	var cached *Account
+	if cached = self.readAccountCache(addr); cached != nil {
 		data = *cached
+		directCacheHitTimer.UpdateSince(bstart)
 	} else {
 		enc := self.trie.Get(addr[:])
+		if self.cacheValidator != nil {
+			directCacheMissTimer.UpdateSince(bstart)
+		}
 		if len(enc) == 0 {
 			return nil
 		}
@@ -414,6 +426,9 @@ func (self *StateDB) GetStateObject(addr common.Address) (stateObject *StateObje
 	// Insert into the live set.
 	obj := newObject(self, addr, data, self.MarkStateObjectDirty)
 	self.setStateObject(obj)
+	if cached == nil {
+		self.writeAccountCache(obj, self.db)
+	}
 	return obj
 }
 
@@ -644,6 +659,7 @@ func (self *StateDB) readAccountCache(addr common.Address) *Account {
 	if len(enc) == 0 {
 		return nil
 	}
+
 	var data cachedAccount
 	if err := rlp.DecodeBytes(enc, &data); err != nil {
 		glog.Errorf("can't decode cached object at %x: %v", addr[:], err)
@@ -658,10 +674,12 @@ func (self *StateDB) readAccountCache(addr common.Address) *Account {
 }
 
 func (s *StateDB) writeAccountCache(so *StateObject, dbw trie.DatabaseWriter) error {
+	directCacheWrites.Inc(1)
 	enc, _ := rlp.EncodeToBytes(cachedAccount{so.data, s.bnum, s.bhash})
 	return dbw.Put(append(accountCacheKeyPrefix, so.address[:]...), enc)
 }
 
 func (s *StateDB) deleteAccountCache(addr common.Address, dbw trie.DatabaseWriter) error {
+	directCacheWrites.Inc(1)
 	return dbw.Delete(append(accountCacheKeyPrefix, addr[:]...))
 }

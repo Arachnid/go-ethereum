@@ -67,6 +67,7 @@ func init() {
 		upgradedbCommand,
 		removedbCommand,
 		dumpCommand,
+		buildCacheCommand,
 		monitorCommand,
 		accountCommand,
 		walletCommand,
