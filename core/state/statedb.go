@@ -43,7 +43,7 @@ var StartingNonce uint64
 // Trie cache generation limit after which to evic trie nodes from memory.
 var MaxTrieCacheGen = uint16(120)
 
-var accountCacheKeyPrefix = []byte("accountcache:")
+var accountCacheKeyPrefix = []byte("accounthashcache:")
 
 var directCacheWrites = metrics.NewCounter("directcache/writes")
 var directCacheHitTimer = metrics.NewTimer("directcache/timer/hits")
@@ -655,7 +655,7 @@ func (self *StateDB) readAccountCache(addr common.Address) *Account {
 	if self.cacheValidator == nil {
 		return nil
 	}
-	enc, _ := self.db.Get(append(accountCacheKeyPrefix, addr[:]...))
+	enc, _ := self.db.Get(append(accountCacheKeyPrefix, self.trie.HashKey(addr[:])...))
 	if len(enc) == 0 {
 		return nil
 	}
@@ -676,10 +676,10 @@ func (self *StateDB) readAccountCache(addr common.Address) *Account {
 func (s *StateDB) writeAccountCache(so *StateObject, dbw trie.DatabaseWriter) error {
 	directCacheWrites.Inc(1)
 	enc, _ := rlp.EncodeToBytes(cachedAccount{so.data, s.bnum, s.bhash})
-	return dbw.Put(append(accountCacheKeyPrefix, so.address[:]...), enc)
+	return dbw.Put(append(accountCacheKeyPrefix, s.trie.HashKey(so.address[:])...), enc)
 }
 
 func (s *StateDB) deleteAccountCache(addr common.Address, dbw trie.DatabaseWriter) error {
 	directCacheWrites.Inc(1)
-	return dbw.Delete(append(accountCacheKeyPrefix, addr[:]...))
+	return dbw.Delete(append(accountCacheKeyPrefix, s.trie.HashKey(addr[:])...))
 }

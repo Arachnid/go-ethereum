@@ -80,7 +80,7 @@ func (t *SecureTrie) Get(key []byte) []byte {
 // The value bytes must not be modified by the caller.
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *SecureTrie) TryGet(key []byte) ([]byte, error) {
-	return t.trie.TryGet(t.hashKey(key))
+	return t.trie.TryGet(t.HashKey(key))
 }
 
 // Update associates key with value in the trie. Subsequent calls to
@@ -104,7 +104,7 @@ func (t *SecureTrie) Update(key, value []byte) {
 //
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *SecureTrie) TryUpdate(key, value []byte) error {
-	hk := t.hashKey(key)
+	hk := t.HashKey(key)
 	err := t.trie.TryUpdate(hk, value)
 	if err != nil {
 		return err
@@ -123,7 +123,7 @@ func (t *SecureTrie) Delete(key []byte) {
 // TryDelete removes any existing value for key from the trie.
 // If a node was not found in the database, a MissingNodeError is returned.
 func (t *SecureTrie) TryDelete(key []byte) error {
-	hk := t.hashKey(key)
+	hk := t.HashKey(key)
 	delete(t.getSecKeyCache(), string(hk))
 	return t.trie.TryDelete(hk)
 }
@@ -183,17 +183,17 @@ func (t *SecureTrie) CommitTo(db DatabaseWriter) (root common.Hash, err error) {
 
 // secKey returns the database key for the preimage of key, as an ephemeral buffer.
 // The caller must not hold onto the return value because it will become
-// invalid on the next call to hashKey or secKey.
+// invalid on the next call to HashKey or secKey.
 func (t *SecureTrie) secKey(key []byte) []byte {
 	buf := append(t.secKeyBuf[:0], secureKeyPrefix...)
 	buf = append(buf, key...)
 	return buf
 }
 
-// hashKey returns the hash of key as an ephemeral buffer.
+// HashKey returns the hash of key as an ephemeral buffer.
 // The caller must not hold onto the return value because it will become
-// invalid on the next call to hashKey or secKey.
-func (t *SecureTrie) hashKey(key []byte) []byte {
+// invalid on the next call to HashKey or secKey.
+func (t *SecureTrie) HashKey(key []byte) []byte {
 	h := newHasher(0, 0)
 	h.sha.Reset()
 	h.sha.Write(key)

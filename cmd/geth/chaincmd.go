@@ -251,7 +251,7 @@ func dump(ctx *cli.Context) error {
 	return nil
 }
 
-var accountCacheKeyPrefix = []byte("accountcache:")
+var accountCacheKeyPrefix = []byte("accounthashcache:")
 
 type cachedAccount struct {
 	state.Account
@@ -267,8 +267,8 @@ func buildCache(ctx *cli.Context) error {
 	num, _ := strconv.Atoi(ctx.Args()[0])
 	blockNum := uint64(num)
 	block := chain.GetBlockByNumber(blockNum)
-	blockHash := block.Root()
-	trie, err := trie.NewSecure(blockHash, chainDb, 0)
+	blockHash := block.Hash()
+	trie, err := trie.NewSecure(block.Root(), chainDb, 0)
 	if err != nil {
 		utils.Fatalf("Could not open trie: %v", err)
 	}

@@ -36,7 +36,7 @@ import (
 )
 
 const (
-	importBatchSize = 2500
+	importBatchSize = 10
 )
 
 func openLogFile(Datadir string, filename string) *os.File {
