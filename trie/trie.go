@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/rcrowley/go-metrics"
 )
@@ -74,7 +75,7 @@ type DatabaseWriter interface {
 	// Put stores the mapping key->value in the database.
 	// Implementations must not hold onto the value bytes, the trie
 	// will reuse the slice across calls to Put.
-	Put(key, value []byte) error
+	Put(key []byte, data ethdb.Value) error
 }
 
 // Trie is a Merkle Patricia Trie.
@@ -159,7 +160,7 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 	case nil:
 		return nil, nil, false, nil
 	case valueNode:
-		return n, n, false, nil
+		return n.Value.Value(), n, false, nil
 	case *shortNode:
 		if len(key)-pos < len(n.Key) || !bytes.Equal(n.Key, key[pos:pos+len(n.Key)]) {
 			// key not found in trie
@@ -198,8 +199,8 @@ func (t *Trie) tryGet(origNode node, key []byte, pos int) (value []byte, newnode
 //
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
-func (t *Trie) Update(key, value []byte) {
-	if err := t.TryUpdate(key, value); err != nil {
+func (t *Trie) Update(key []byte, data ethdb.Value) {
+	if err := t.TryUpdate(key, data); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
 }
@@ -212,10 +213,11 @@ func (t *Trie) Update(key, value []byte) {
 // stored in the trie.
 //
 // If a node was not found in the database, a MissingNodeError is returned.
-func (t *Trie) TryUpdate(key, value []byte) error {
+func (t *Trie) TryUpdate(key []byte, data ethdb.Value) error {
+	value := data.Value()
 	k := keybytesToHex(key)
 	if len(value) != 0 {
-		_, n, err := t.insert(t.root, nil, k, valueNode(value))
+		_, n, err := t.insert(t.root, nil, k, valueNode{data})
 		if err != nil {
 			return err
 		}
@@ -233,7 +235,7 @@ func (t *Trie) TryUpdate(key, value []byte) error {
 func (t *Trie) insert(n node, prefix, key []byte, value node) (bool, node, error) {
 	if len(key) == 0 {
 		if v, ok := n.(valueNode); ok {
-			return !bytes.Equal(v, value.(valueNode)), value, nil
+			return !bytes.Equal(v.Value.Value(), value.(valueNode).Value.Value()), value, nil
 		}
 		return true, value, nil
 	}

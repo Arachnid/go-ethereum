@@ -36,17 +36,17 @@ func makeTestTrie() (ethdb.Database, *Trie, map[string][]byte) {
 		// Map the same data under multiple keys
 		key, val := common.LeftPadBytes([]byte{1, i}, 32), []byte{i}
 		content[string(key)] = val
-		trie.Update(key, val)
+		trie.Update(key, ethdb.SimpleValue(val))
 
 		key, val = common.LeftPadBytes([]byte{2, i}, 32), []byte{i}
 		content[string(key)] = val
-		trie.Update(key, val)
+		trie.Update(key, ethdb.SimpleValue(val))
 
 		// Add some other data to inflate the trie
 		for j := byte(3); j < 13; j++ {
 			key, val = common.LeftPadBytes([]byte{j, i}, 32), []byte{j, i}
 			content[string(key)] = val
-			trie.Update(key, val)
+			trie.Update(key, ethdb.SimpleValue(val))
 		}
 	}
 	trie.Commit()
@@ -346,6 +346,6 @@ func TestIncompleteTrieSync(t *testing.T) {
 		if err := checkTrieConsistency(dstDb, added[0]); err == nil {
 			t.Fatalf("trie inconsistency not caught, missing: %x", key)
 		}
-		dstDb.Put(key, value)
+		dstDb.Put(key, ethdb.SimpleValue(value))
 	}
 }

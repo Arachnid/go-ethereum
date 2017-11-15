@@ -97,7 +97,7 @@ func (s *Snapshot) store(db ethdb.Database) error {
 	if err != nil {
 		return err
 	}
-	return db.Put(append([]byte("clique-"), s.Hash[:]...), blob)
+	return db.Put(append([]byte("clique-"), s.Hash[:]...), ethdb.SimpleValue(blob))
 }
 
 // copy creates a deep copy of the snapshot, though not the individual votes.

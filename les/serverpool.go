@@ -413,7 +413,7 @@ func (pool *serverPool) saveNodes() {
 	}
 	enc, err := rlp.EncodeToBytes(list)
 	if err == nil {
-		pool.db.Put(pool.dbKey, enc)
+		pool.db.Put(pool.dbKey, ethdb.SimpleValue(enc))
 	}
 }
 

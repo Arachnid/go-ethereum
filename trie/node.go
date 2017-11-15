@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -44,8 +45,16 @@ type (
 		flags nodeFlag
 	}
 	hashNode  []byte
-	valueNode []byte
+	valueNode struct { ethdb.Value }
 )
+
+func (n valueNode) EncodeRLP(w io.Writer) error {
+	var value []byte
+	if(n.Value != nil) {
+		value = n.Value.Value()
+	}
+	return rlp.Encode(w, value)
+}
 
 // EncodeRLP encodes a full node into the consensus RLP format.
 func (n *fullNode) EncodeRLP(w io.Writer) error {
@@ -101,7 +110,7 @@ func (n hashNode) fstring(ind string) string {
 	return fmt.Sprintf("<%x> ", []byte(n))
 }
 func (n valueNode) fstring(ind string) string {
-	return fmt.Sprintf("%x ", []byte(n))
+	return fmt.Sprintf("%x ", n.Value.Value())
 }
 
 func mustDecodeNode(hash, buf []byte, cachegen uint16) node {
@@ -146,7 +155,7 @@ func decodeShort(hash, buf, elems []byte, cachegen uint16) (node, error) {
 		if err != nil {
 			return nil, fmt.Errorf("invalid value node: %v", err)
 		}
-		return &shortNode{key, append(valueNode{}, val...), flag}, nil
+		return &shortNode{key, valueNode{ethdb.SimpleValue(append([]byte{}, val...))}, flag}, nil
 	}
 	r, _, err := decodeRef(rest, cachegen)
 	if err != nil {
@@ -169,7 +178,7 @@ func decodeFull(hash, buf, elems []byte, cachegen uint16) (*fullNode, error) {
 		return n, err
 	}
 	if len(val) > 0 {
-		n.Children[16] = append(valueNode{}, val...)
+		n.Children[16] = valueNode{ethdb.SimpleValue(append([]byte{}, val...))}
 	}
 	return n, nil
 }

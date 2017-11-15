@@ -37,11 +37,11 @@ func NewMemDatabase() (*MemDatabase, error) {
 	}, nil
 }
 
-func (db *MemDatabase) Put(key []byte, value []byte) error {
+func (db *MemDatabase) Put(key []byte, data Value) error {
 	db.lock.Lock()
 	defer db.lock.Unlock()
 
-	db.db[string(key)] = common.CopyBytes(value)
+	db.db[string(key)] = common.CopyBytes(data.Value())
 	return nil
 }
 
@@ -104,7 +104,8 @@ type memBatch struct {
 	size   int
 }
 
-func (b *memBatch) Put(key, value []byte) error {
+func (b *memBatch) Put(key []byte, data Value) error {
+	value := data.Value()
 	b.writes = append(b.writes, kv{common.CopyBytes(key), common.CopyBytes(value)})
 	b.size += len(value)
 	return nil

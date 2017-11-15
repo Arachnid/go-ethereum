@@ -230,7 +230,7 @@ func (s *requestCostStats) store() {
 	}
 
 	if data, err := rlp.EncodeToBytes(statsRlp); err == nil {
-		s.db.Put(rcStatsKey, data)
+		s.db.Put(rcStatsKey, ethdb.SimpleValue(data))
 	}
 }
 
@@ -343,7 +343,7 @@ func getChtRoot(db ethdb.Database, num uint64) common.Hash {
 func storeChtRoot(db ethdb.Database, num uint64, root common.Hash) {
 	var encNumber [8]byte
 	binary.BigEndian.PutUint64(encNumber[:], num)
-	db.Put(append(chtPrefix, encNumber[:]...), root[:])
+	db.Put(append(chtPrefix, encNumber[:]...), ethdb.SimpleValue(root[:]))
 }
 
 func makeCht(db ethdb.Database) bool {
@@ -391,7 +391,7 @@ func makeCht(db ethdb.Database) bool {
 		node.Hash = hash
 		node.Td = td
 		data, _ := rlp.EncodeToBytes(node)
-		t.Update(encNumber[:], data)
+		t.Update(encNumber[:], ethdb.SimpleValue(data))
 	}
 
 	root, err := t.Commit()
@@ -405,7 +405,7 @@ func makeCht(db ethdb.Database) bool {
 		storeChtRoot(db, lastChtNum, root)
 		var data [8]byte
 		binary.BigEndian.PutUint64(data[:], lastChtNum)
-		db.Put(lastChtKey, data[:])
+		db.Put(lastChtKey, ethdb.SimpleValue(data[:]))
 	}
 
 	return newChtNum > lastChtNum

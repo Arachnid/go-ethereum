@@ -94,7 +94,7 @@ func newTester() *downloadTester {
 		peerMissingStates: make(map[string]map[common.Hash]bool),
 	}
 	tester.stateDb, _ = ethdb.NewMemDatabase()
-	tester.stateDb.Put(genesis.Root().Bytes(), []byte{0x00})
+	tester.stateDb.Put(genesis.Root().Bytes(), ethdb.SimpleValue([]byte{0x00}))
 
 	tester.downloader = New(FullSync, tester.stateDb, new(event.TypeMux), tester, nil, tester.dropPeer)
 
@@ -351,7 +351,7 @@ func (dl *downloadTester) InsertChain(blocks types.Blocks) (int, error) {
 			dl.ownHeaders[block.Hash()] = block.Header()
 		}
 		dl.ownBlocks[block.Hash()] = block
-		dl.stateDb.Put(block.Root().Bytes(), []byte{0x00})
+		dl.stateDb.Put(block.Root().Bytes(), ethdb.SimpleValue([]byte{0x00}))
 		dl.ownChainTd[block.Hash()] = new(big.Int).Add(dl.ownChainTd[block.ParentHash()], block.Difficulty())
 	}
 	return len(blocks), nil

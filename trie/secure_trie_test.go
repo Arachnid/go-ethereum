@@ -45,17 +45,17 @@ func makeTestSecureTrie() (ethdb.Database, *SecureTrie, map[string][]byte) {
 		// Map the same data under multiple keys
 		key, val := common.LeftPadBytes([]byte{1, i}, 32), []byte{i}
 		content[string(key)] = val
-		trie.Update(key, val)
+		trie.Update(key, ethdb.SimpleValue(val))
 
 		key, val = common.LeftPadBytes([]byte{2, i}, 32), []byte{i}
 		content[string(key)] = val
-		trie.Update(key, val)
+		trie.Update(key, ethdb.SimpleValue(val))
 
 		// Add some other data to inflate the trie
 		for j := byte(3); j < 13; j++ {
 			key, val = common.LeftPadBytes([]byte{j, i}, 32), []byte{j, i}
 			content[string(key)] = val
-			trie.Update(key, val)
+			trie.Update(key, ethdb.SimpleValue(val))
 		}
 	}
 	trie.Commit()
@@ -78,7 +78,7 @@ func TestSecureDelete(t *testing.T) {
 	}
 	for _, val := range vals {
 		if val.v != "" {
-			trie.Update([]byte(val.k), []byte(val.v))
+			trie.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 		} else {
 			trie.Delete([]byte(val.k))
 		}
@@ -92,7 +92,7 @@ func TestSecureDelete(t *testing.T) {
 
 func TestSecureGetKey(t *testing.T) {
 	trie := newEmptySecure()
-	trie.Update([]byte("foo"), []byte("bar"))
+	trie.Update([]byte("foo"), ethdb.SimpleValue([]byte("bar")))
 
 	key := []byte("foo")
 	value := []byte("bar")
@@ -126,15 +126,15 @@ func TestSecureTrieConcurrency(t *testing.T) {
 			for j := byte(0); j < 255; j++ {
 				// Map the same data under multiple keys
 				key, val := common.LeftPadBytes([]byte{byte(index), 1, j}, 32), []byte{j}
-				tries[index].Update(key, val)
+				tries[index].Update(key, ethdb.SimpleValue(val))
 
 				key, val = common.LeftPadBytes([]byte{byte(index), 2, j}, 32), []byte{j}
-				tries[index].Update(key, val)
+				tries[index].Update(key, ethdb.SimpleValue(val))
 
 				// Add some other data to inflate the trie
 				for k := byte(3); k < 13; k++ {
 					key, val = common.LeftPadBytes([]byte{byte(index), k, j}, 32), []byte{k, j}
-					tries[index].Update(key, val)
+					tries[index].Update(key, ethdb.SimpleValue(val))
 				}
 			}
 			tries[index].Commit()

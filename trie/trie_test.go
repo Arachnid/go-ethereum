@@ -58,7 +58,7 @@ func TestNull(t *testing.T) {
 	var trie Trie
 	key := make([]byte, 32)
 	value := []byte("test")
-	trie.Update(key, value)
+	trie.Update(key, ethdb.SimpleValue(value))
 	if !bytes.Equal(trie.Get(key), value) {
 		t.Fatal("wrong value")
 	}
@@ -101,7 +101,7 @@ func TestMissingNode(t *testing.T) {
 	}
 
 	trie, _ = New(root, db)
-	err = trie.TryUpdate([]byte("120099"), []byte("zxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv"))
+	err = trie.TryUpdate([]byte("120099"), ethdb.SimpleValue([]byte("zxcvzxcvzxcvzxcvzxcvzxcvzxcvzxcv")))
 	if err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestMissingNode(t *testing.T) {
 	}
 
 	trie, _ = New(root, db)
-	err = trie.TryUpdate([]byte("120099"), []byte("zxcv"))
+	err = trie.TryUpdate([]byte("120099"), ethdb.SimpleValue([]byte("zxcv")))
 	if _, ok := err.(*MissingNodeError); !ok {
 		t.Errorf("Wrong error: %v", err)
 	}
@@ -305,8 +305,8 @@ func TestReplication(t *testing.T) {
 
 func TestLargeValue(t *testing.T) {
 	trie := newEmpty()
-	trie.Update([]byte("key1"), []byte{99, 99, 99, 99})
-	trie.Update([]byte("key2"), bytes.Repeat([]byte{1}, 32))
+	trie.Update([]byte("key1"), ethdb.SimpleValue([]byte{99, 99, 99, 99}))
+	trie.Update([]byte("key2"), ethdb.SimpleValue(bytes.Repeat([]byte{1}, 32)))
 	trie.Hash()
 }
 
@@ -411,7 +411,7 @@ func runRandTest(rt randTest) bool {
 	for i, step := range rt {
 		switch step.op {
 		case opUpdate:
-			tr.Update(step.key, step.value)
+			tr.Update(step.key, ethdb.SimpleValue(step.value))
 			values[string(step.key)] = string(step.value)
 		case opDelete:
 			tr.Delete(step.key)
@@ -442,7 +442,7 @@ func runRandTest(rt randTest) bool {
 			checktr, _ := New(common.Hash{}, nil)
 			it := NewIterator(tr.NodeIterator(nil))
 			for it.Next() {
-				checktr.Update(it.Key, it.Value)
+				checktr.Update(it.Key, ethdb.SimpleValue(it.Value))
 			}
 			if tr.Hash() != checktr.Hash() {
 				rt[i].err = fmt.Errorf("hash mismatch in opItercheckhash")
@@ -519,7 +519,7 @@ func benchGet(b *testing.B, commit bool) {
 	k := make([]byte, 32)
 	for i := 0; i < benchElemCount; i++ {
 		binary.LittleEndian.PutUint64(k, uint64(i))
-		trie.Update(k, k)
+		trie.Update(k, ethdb.SimpleValue(k))
 	}
 	binary.LittleEndian.PutUint64(k, benchElemCount/2)
 	if commit {
@@ -544,7 +544,7 @@ func benchUpdate(b *testing.B, e binary.ByteOrder) *Trie {
 	k := make([]byte, 32)
 	for i := 0; i < b.N; i++ {
 		e.PutUint64(k, uint64(i))
-		trie.Update(k, k)
+		trie.Update(k, ethdb.SimpleValue(k))
 	}
 	return trie
 }
@@ -554,7 +554,7 @@ func benchHash(b *testing.B, e binary.ByteOrder) {
 	k := make([]byte, 32)
 	for i := 0; i < benchElemCount; i++ {
 		e.PutUint64(k, uint64(i))
-		trie.Update(k, k)
+		trie.Update(k, ethdb.SimpleValue(k))
 	}
 
 	b.ResetTimer()
@@ -580,7 +580,7 @@ func getString(trie *Trie, k string) []byte {
 }
 
 func updateString(trie *Trie, k, v string) {
-	trie.Update([]byte(k), []byte(v))
+	trie.Update([]byte(k), ethdb.SimpleValue([]byte(v)))
 }
 
 func deleteString(trie *Trie, k string) {

@@ -348,6 +348,6 @@ func TestIncompleteStateSync(t *testing.T) {
 		if err := checkStateConsistency(dstDb, added[0]); err == nil {
 			t.Fatalf("trie inconsistency not caught, missing: %x", key)
 		}
-		dstDb.Put(key, value)
+		dstDb.Put(key, ethdb.SimpleValue(value))
 	}
 }

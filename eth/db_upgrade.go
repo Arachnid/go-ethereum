@@ -41,7 +41,7 @@ func upgradeDeduplicateData(db ethdb.Database) func() error {
 		return nil
 	}
 	if data, _ := db.Get([]byte("LastHeader")); len(data) == 0 {
-		db.Put(deduplicateData, []byte{42})
+		db.Put(deduplicateData, ethdb.SimpleValue([]byte{42}))
 		return nil
 	}
 	// Start the deduplication upgrade on a new goroutine
@@ -86,7 +86,7 @@ func upgradeDeduplicateData(db ethdb.Database) func() error {
 				}
 			}
 			// Convert the old metadata to a new lookup entry, delete duplicate data
-			if failed = db.Put(append([]byte("l"), hash...), it.Value()); failed == nil { // Write the new looku entry
+			if failed = db.Put(append([]byte("l"), hash...), ethdb.SimpleValue(it.Value())); failed == nil { // Write the new looku entry
 				if failed = db.Delete(hash); failed == nil { // Delete the duplicate transaction data
 					if failed = db.Delete(append([]byte("receipts-"), hash...)); failed == nil { // Delete the duplicate receipt data
 						if failed = db.Delete(key); failed != nil { // Delete the old transaction metadata
@@ -116,7 +116,7 @@ func upgradeDeduplicateData(db ethdb.Database) func() error {
 		// Upgrade finished, mark a such and terminate
 		if failed == nil {
 			log.Info("Database deduplication successful", "deduped", converted)
-			db.Put(deduplicateData, []byte{42})
+			db.Put(deduplicateData, ethdb.SimpleValue([]byte{42}))
 		} else {
 			log.Error("Database deduplication failed", "deduped", converted, "err", failed)
 		}

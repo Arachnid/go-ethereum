@@ -370,7 +370,7 @@ func testGetNodeData(t *testing.T, protocol int) {
 	}
 	statedb, _ := ethdb.NewMemDatabase()
 	for i := 0; i < len(data); i++ {
-		statedb.Put(hashes[i].Bytes(), data[i])
+		statedb.Put(hashes[i].Bytes(), ethdb.SimpleValue(data[i]))
 	}
 	accounts := []common.Address{testBank, acc1Addr, acc2Addr}
 	for i := uint64(0); i <= pm.blockchain.CurrentBlock().NumberU64(); i++ {

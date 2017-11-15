@@ -61,7 +61,7 @@ func testPutGet(db ethdb.Database, t *testing.T) {
 	t.Parallel()
 
 	for _, v := range test_values {
-		err := db.Put([]byte(v), []byte(v))
+		err := db.Put([]byte(v), ethdb.SimpleValue([]byte(v)))
 		if err != nil {
 			t.Fatalf("put failed: %v", err)
 		}
@@ -78,7 +78,7 @@ func testPutGet(db ethdb.Database, t *testing.T) {
 	}
 
 	for _, v := range test_values {
-		err := db.Put([]byte(v), []byte("?"))
+		err := db.Put([]byte(v), ethdb.SimpleValue([]byte("?")))
 		if err != nil {
 			t.Fatalf("put override failed: %v", err)
 		}
@@ -143,7 +143,7 @@ func testParallelPutGet(db ethdb.Database, t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(key string) {
 			defer pending.Done()
-			err := db.Put([]byte(key), []byte("v"+key))
+			err := db.Put([]byte(key), ethdb.SimpleValue([]byte("v"+key)))
 			if err != nil {
 				panic("put failed: " + err.Error())
 			}

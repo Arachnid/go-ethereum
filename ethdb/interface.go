@@ -20,9 +20,19 @@ package ethdb
 // The value was determined empirically.
 const IdealBatchSize = 100 * 1024
 
+type Value interface {
+	Value() []byte
+	References() [][]byte
+}
+
+type SimpleValue []byte
+
+func (se SimpleValue) Value() []byte { return []byte(se) }
+func (Se SimpleValue) References() [][]byte { return nil }
+
 // Putter wraps the database write operation supported by both batches and regular databases.
 type Putter interface {
-	Put(key []byte, value []byte) error
+	Put(key []byte, data Value) error
 }
 
 // Database wraps all database operations. All methods are safe for concurrent use.

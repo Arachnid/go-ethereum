@@ -62,7 +62,7 @@ func GetTrustedCht(db ethdb.Database) TrustedCht {
 
 func WriteTrustedCht(db ethdb.Database, cht TrustedCht) {
 	data, _ := rlp.EncodeToBytes(cht)
-	db.Put(trustedChtKey, data)
+	db.Put(trustedChtKey, ethdb.SimpleValue(data))
 }
 
 func DeleteTrustedCht(db ethdb.Database) {

@@ -94,7 +94,7 @@ func storeProof(db ethdb.Database, proof []rlp.RawValue) {
 		hash := crypto.Keccak256(buf)
 		val, _ := db.Get(hash)
 		if val == nil {
-			db.Put(hash, buf)
+			db.Put(hash, ethdb.SimpleValue(buf))
 		}
 	}
 }
@@ -109,7 +109,7 @@ type CodeRequest struct {
 
 // StoreResult stores the retrieved data in local database
 func (req *CodeRequest) StoreResult(db ethdb.Database) {
-	db.Put(req.Hash[:], req.Data)
+	db.Put(req.Hash[:], ethdb.SimpleValue(req.Data))
 }
 
 // BlockRequest is the ODR request type for retrieving block bodies

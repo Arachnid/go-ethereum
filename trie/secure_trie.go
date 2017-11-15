@@ -20,6 +20,7 @@ import (
 	"fmt"
 
 	"github.com/ethereum/go-ethereum/common"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/log"
 )
 
@@ -90,8 +91,8 @@ func (t *SecureTrie) TryGet(key []byte) ([]byte, error) {
 //
 // The value bytes must not be modified by the caller while they are
 // stored in the trie.
-func (t *SecureTrie) Update(key, value []byte) {
-	if err := t.TryUpdate(key, value); err != nil {
+func (t *SecureTrie) Update(key []byte, data ethdb.Value) {
+	if err := t.TryUpdate(key, data); err != nil {
 		log.Error(fmt.Sprintf("Unhandled trie error: %v", err))
 	}
 }
@@ -104,9 +105,9 @@ func (t *SecureTrie) Update(key, value []byte) {
 // stored in the trie.
 //
 // If a node was not found in the database, a MissingNodeError is returned.
-func (t *SecureTrie) TryUpdate(key, value []byte) error {
+func (t *SecureTrie) TryUpdate(key []byte, data ethdb.Value) error {
 	hk := t.hashKey(key)
-	err := t.trie.TryUpdate(hk, value)
+	err := t.trie.TryUpdate(hk, data)
 	if err != nil {
 		return err
 	}
@@ -176,7 +177,7 @@ func (t *SecureTrie) NodeIterator(start []byte) NodeIterator {
 func (t *SecureTrie) CommitTo(db DatabaseWriter) (root common.Hash, err error) {
 	if len(t.getSecKeyCache()) > 0 {
 		for hk, key := range t.secKeyCache {
-			if err := db.Put(t.secKey([]byte(hk)), key); err != nil {
+			if err := db.Put([]byte(hk), ethdb.SimpleValue(key)); err != nil {
 				return common.Hash{}, err
 			}
 		}

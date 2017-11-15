@@ -23,6 +23,7 @@ import (
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/crypto/sha3"
+	"github.com/ethereum/go-ethereum/ethdb"
 	"github.com/ethereum/go-ethereum/rlp"
 )
 
@@ -115,7 +116,7 @@ func (h *hasher) hashChildren(original node, db DatabaseWriter) (node, node, err
 			}
 		}
 		if collapsed.Val == nil {
-			collapsed.Val = valueNode(nil) // Ensure that nil children are encoded as empty strings.
+			collapsed.Val = valueNode{nil} // Ensure that nil children are encoded as empty strings.
 		}
 		return collapsed, cached, nil
 
@@ -130,12 +131,12 @@ func (h *hasher) hashChildren(original node, db DatabaseWriter) (node, node, err
 					return original, original, err
 				}
 			} else {
-				collapsed.Children[i] = valueNode(nil) // Ensure that nil children are encoded as empty strings.
+				collapsed.Children[i] = valueNode{nil} // Ensure that nil children are encoded as empty strings.
 			}
 		}
 		cached.Children[16] = n.Children[16]
 		if collapsed.Children[16] == nil {
-			collapsed.Children[16] = valueNode(nil)
+			collapsed.Children[16] = valueNode{nil}
 		}
 		return collapsed, cached, nil
 
@@ -167,7 +168,11 @@ func (h *hasher) store(n node, db DatabaseWriter, force bool) (node, error) {
 		hash = hashNode(h.sha.Sum(nil))
 	}
 	if db != nil {
-		return hash, db.Put(hash, h.tmp.Bytes())
+		if n, ok := n.(valueNode); ok {
+			return hash, db.Put(hash, n.Value)
+		} else {
+			return hash, db.Put(hash, ethdb.SimpleValue(h.tmp.Bytes()))
+		}
 	}
 	return hash, nil
 }

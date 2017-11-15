@@ -345,7 +345,7 @@ func GetBloomBits(db DatabaseReader, bit uint, section uint64, head common.Hash)
 // WriteCanonicalHash stores the canonical hash for the given block number.
 func WriteCanonicalHash(db ethdb.Putter, hash common.Hash, number uint64) error {
 	key := append(append(headerPrefix, encodeBlockNumber(number)...), numSuffix...)
-	if err := db.Put(key, hash.Bytes()); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(hash.Bytes())); err != nil {
 		log.Crit("Failed to store number to hash mapping", "err", err)
 	}
 	return nil
@@ -353,7 +353,7 @@ func WriteCanonicalHash(db ethdb.Putter, hash common.Hash, number uint64) error 
 
 // WriteHeadHeaderHash stores the head header's hash.
 func WriteHeadHeaderHash(db ethdb.Putter, hash common.Hash) error {
-	if err := db.Put(headHeaderKey, hash.Bytes()); err != nil {
+	if err := db.Put(headHeaderKey, ethdb.SimpleValue(hash.Bytes())); err != nil {
 		log.Crit("Failed to store last header's hash", "err", err)
 	}
 	return nil
@@ -361,7 +361,7 @@ func WriteHeadHeaderHash(db ethdb.Putter, hash common.Hash) error {
 
 // WriteHeadBlockHash stores the head block's hash.
 func WriteHeadBlockHash(db ethdb.Putter, hash common.Hash) error {
-	if err := db.Put(headBlockKey, hash.Bytes()); err != nil {
+	if err := db.Put(headBlockKey, ethdb.SimpleValue(hash.Bytes())); err != nil {
 		log.Crit("Failed to store last block's hash", "err", err)
 	}
 	return nil
@@ -369,7 +369,7 @@ func WriteHeadBlockHash(db ethdb.Putter, hash common.Hash) error {
 
 // WriteHeadFastBlockHash stores the fast head block's hash.
 func WriteHeadFastBlockHash(db ethdb.Putter, hash common.Hash) error {
-	if err := db.Put(headFastKey, hash.Bytes()); err != nil {
+	if err := db.Put(headFastKey, ethdb.SimpleValue(hash.Bytes())); err != nil {
 		log.Crit("Failed to store last fast block's hash", "err", err)
 	}
 	return nil
@@ -385,11 +385,11 @@ func WriteHeader(db ethdb.Putter, header *types.Header) error {
 	num := header.Number.Uint64()
 	encNum := encodeBlockNumber(num)
 	key := append(blockHashPrefix, hash...)
-	if err := db.Put(key, encNum); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(encNum)); err != nil {
 		log.Crit("Failed to store hash to number mapping", "err", err)
 	}
 	key = append(append(headerPrefix, encNum...), hash...)
-	if err := db.Put(key, data); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(data)); err != nil {
 		log.Crit("Failed to store header", "err", err)
 	}
 	return nil
@@ -407,7 +407,7 @@ func WriteBody(db ethdb.Putter, hash common.Hash, number uint64, body *types.Bod
 // WriteBodyRLP writes a serialized body of a block into the database.
 func WriteBodyRLP(db ethdb.Putter, hash common.Hash, number uint64, rlp rlp.RawValue) error {
 	key := append(append(bodyPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
-	if err := db.Put(key, rlp); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(rlp)); err != nil {
 		log.Crit("Failed to store block body", "err", err)
 	}
 	return nil
@@ -420,7 +420,7 @@ func WriteTd(db ethdb.Putter, hash common.Hash, number uint64, td *big.Int) erro
 		return err
 	}
 	key := append(append(append(headerPrefix, encodeBlockNumber(number)...), hash.Bytes()...), tdSuffix...)
-	if err := db.Put(key, data); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(data)); err != nil {
 		log.Crit("Failed to store block total difficulty", "err", err)
 	}
 	return nil
@@ -454,7 +454,7 @@ func WriteBlockReceipts(db ethdb.Putter, hash common.Hash, number uint64, receip
 	}
 	// Store the flattened receipt slice
 	key := append(append(blockReceiptsPrefix, encodeBlockNumber(number)...), hash.Bytes()...)
-	if err := db.Put(key, bytes); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(bytes)); err != nil {
 		log.Crit("Failed to store block receipts", "err", err)
 	}
 	return nil
@@ -474,7 +474,7 @@ func WriteTxLookupEntries(db ethdb.Putter, block *types.Block) error {
 		if err != nil {
 			return err
 		}
-		if err := db.Put(append(lookupPrefix, tx.Hash().Bytes()...), data); err != nil {
+		if err := db.Put(append(lookupPrefix, tx.Hash().Bytes()...), ethdb.SimpleValue(data)); err != nil {
 			return err
 		}
 	}
@@ -489,7 +489,7 @@ func WriteBloomBits(db ethdb.Putter, bit uint, section uint64, head common.Hash,
 	binary.BigEndian.PutUint16(key[1:], uint16(bit))
 	binary.BigEndian.PutUint64(key[3:], section)
 
-	if err := db.Put(key, bits); err != nil {
+	if err := db.Put(key, ethdb.SimpleValue(bits)); err != nil {
 		log.Crit("Failed to store bloom bits", "err", err)
 	}
 }
@@ -546,7 +546,7 @@ func WritePreimages(db ethdb.Database, number uint64, preimages map[common.Hash]
 	hitCount := 0
 	for hash, preimage := range preimages {
 		if _, err := table.Get(hash.Bytes()); err != nil {
-			batch.Put(hash.Bytes(), preimage)
+			batch.Put(hash.Bytes(), ethdb.SimpleValue(preimage))
 			hitCount++
 		}
 	}
@@ -571,7 +571,7 @@ func GetBlockChainVersion(db DatabaseReader) int {
 // WriteBlockChainVersion writes vsn as the version number to db.
 func WriteBlockChainVersion(db ethdb.Putter, vsn int) {
 	enc, _ := rlp.EncodeToBytes(uint(vsn))
-	db.Put([]byte("BlockchainVersion"), enc)
+	db.Put([]byte("BlockchainVersion"), ethdb.SimpleValue(enc))
 }
 
 // WriteChainConfig writes the chain config settings to the database.
@@ -587,7 +587,7 @@ func WriteChainConfig(db ethdb.Putter, hash common.Hash, cfg *params.ChainConfig
 		return err
 	}
 
-	return db.Put(append(configPrefix, hash[:]...), jsonChainConfig)
+	return db.Put(append(configPrefix, hash[:]...), ethdb.SimpleValue(jsonChainConfig))
 }
 
 // GetChainConfig will fetch the network settings based on the given hash.

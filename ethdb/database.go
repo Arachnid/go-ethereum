@@ -95,7 +95,9 @@ func (db *LDBDatabase) Path() string {
 }
 
 // Put puts the given key / value to the queue
-func (db *LDBDatabase) Put(key []byte, value []byte) error {
+func (db *LDBDatabase) Put(key []byte, data Value) error {
+	value := data.Value()
+
 	// Measure the database put latency, if requested
 	if db.putTimer != nil {
 		defer db.putTimer.UpdateSince(time.Now())
@@ -285,7 +287,8 @@ type ldbBatch struct {
 	size int
 }
 
-func (b *ldbBatch) Put(key, value []byte) error {
+func (b *ldbBatch) Put(key []byte, data Value) error {
+	value := data.Value()
 	b.b.Put(key, value)
 	b.size += len(value)
 	return nil
@@ -313,8 +316,8 @@ func NewTable(db Database, prefix string) Database {
 	}
 }
 
-func (dt *table) Put(key []byte, value []byte) error {
-	return dt.db.Put(append([]byte(dt.prefix), key...), value)
+func (dt *table) Put(key []byte, data Value) error {
+	return dt.db.Put(append([]byte(dt.prefix), key...), data)
 }
 
 func (dt *table) Has(key []byte) (bool, error) {
@@ -347,7 +350,7 @@ func (dt *table) NewBatch() Batch {
 	return &tableBatch{dt.db.NewBatch(), dt.prefix}
 }
 
-func (tb *tableBatch) Put(key, value []byte) error {
+func (tb *tableBatch) Put(key []byte, value Value) error {
 	return tb.batch.Put(append([]byte(tb.prefix), key...), value)
 }
 

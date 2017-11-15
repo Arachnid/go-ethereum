@@ -40,7 +40,7 @@ func TestIterator(t *testing.T) {
 	all := make(map[string]string)
 	for _, val := range vals {
 		all[val.k] = val.v
-		trie.Update([]byte(val.k), []byte(val.v))
+		trie.Update([]byte(val.k), ethdb.SimpleValue(ethdb.SimpleValue([]byte(val.v))))
 	}
 	trie.Commit()
 
@@ -69,8 +69,8 @@ func TestIteratorLargeData(t *testing.T) {
 	for i := byte(0); i < 255; i++ {
 		value := &kv{common.LeftPadBytes([]byte{i}, 32), []byte{i}, false}
 		value2 := &kv{common.LeftPadBytes([]byte{10, i}, 32), []byte{i}, false}
-		trie.Update(value.k, value.v)
-		trie.Update(value2.k, value2.v)
+		trie.Update(value.k, ethdb.SimpleValue(value.v))
+		trie.Update(value2.k, ethdb.SimpleValue(value2.v))
 		vals[string(value.k)] = value
 		vals[string(value2.k)] = value2
 	}
@@ -148,7 +148,7 @@ var testdata2 = []kvs{
 func TestIteratorSeek(t *testing.T) {
 	trie := newEmpty()
 	for _, val := range testdata1 {
-		trie.Update([]byte(val.k), []byte(val.v))
+		trie.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 
 	// Seek to the middle.
@@ -189,13 +189,13 @@ func checkIteratorOrder(want []kvs, it *Iterator) error {
 func TestDifferenceIterator(t *testing.T) {
 	triea := newEmpty()
 	for _, val := range testdata1 {
-		triea.Update([]byte(val.k), []byte(val.v))
+		triea.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	triea.Commit()
 
 	trieb := newEmpty()
 	for _, val := range testdata2 {
-		trieb.Update([]byte(val.k), []byte(val.v))
+		trieb.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	trieb.Commit()
 
@@ -225,13 +225,13 @@ func TestDifferenceIterator(t *testing.T) {
 func TestUnionIterator(t *testing.T) {
 	triea := newEmpty()
 	for _, val := range testdata1 {
-		triea.Update([]byte(val.k), []byte(val.v))
+		triea.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	triea.Commit()
 
 	trieb := newEmpty()
 	for _, val := range testdata2 {
-		trieb.Update([]byte(val.k), []byte(val.v))
+		trieb.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	trieb.Commit()
 
@@ -272,7 +272,7 @@ func TestUnionIterator(t *testing.T) {
 func TestIteratorNoDups(t *testing.T) {
 	var tr Trie
 	for _, val := range testdata1 {
-		tr.Update([]byte(val.k), []byte(val.v))
+		tr.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
 }
@@ -282,7 +282,7 @@ func TestIteratorContinueAfterError(t *testing.T) {
 	db, _ := ethdb.NewMemDatabase()
 	tr, _ := New(common.Hash{}, db)
 	for _, val := range testdata1 {
-		tr.Update([]byte(val.k), []byte(val.v))
+		tr.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	tr.Commit()
 	wantNodeCount := checkIteratorNoDups(t, tr.NodeIterator(nil), nil)
@@ -314,7 +314,7 @@ func TestIteratorContinueAfterError(t *testing.T) {
 		}
 
 		// Add the node back and continue iteration.
-		db.Put(rkey, rval)
+		db.Put(rkey, ethdb.SimpleValue(rval))
 		checkIteratorNoDups(t, it, seen)
 		if it.Error() != nil {
 			t.Fatal("unexpected error", it.Error())
@@ -333,7 +333,7 @@ func TestIteratorContinueAfterSeekError(t *testing.T) {
 	db, _ := ethdb.NewMemDatabase()
 	ctr, _ := New(common.Hash{}, db)
 	for _, val := range testdata1 {
-		ctr.Update([]byte(val.k), []byte(val.v))
+		ctr.Update([]byte(val.k), ethdb.SimpleValue([]byte(val.v)))
 	}
 	root, _ := ctr.Commit()
 	barNodeHash := common.HexToHash("05041990364eb72fcb1127652ce40d8bab765f2bfe53225b1170d276cc101c2e")
@@ -352,7 +352,7 @@ func TestIteratorContinueAfterSeekError(t *testing.T) {
 	}
 
 	// Reinsert the missing node.
-	db.Put(barNodeHash[:], barNode[:])
+	db.Put(barNodeHash[:], ethdb.SimpleValue(barNode[:]))
 
 	// Check that iteration produces the right set of values.
 	if err := checkIteratorOrder(testdata1[2:], NewIterator(it)); err != nil {

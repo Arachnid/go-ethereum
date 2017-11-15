@@ -434,7 +434,7 @@ func (self *TxPool) Add(ctx context.Context, tx *types.Transaction) error {
 	//fmt.Println("Send", tx.Hash())
 	self.relay.Send(types.Transactions{tx})
 
-	self.chainDb.Put(tx.Hash().Bytes(), data)
+	self.chainDb.Put(tx.Hash().Bytes(), ethdb.SimpleValue(data))
 	return nil
 }
 
