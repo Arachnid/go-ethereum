@@ -28,6 +28,8 @@ import (
 	"github.com/ebfe/scard"
 	"github.com/ethereum/go-ethereum/crypto"
 	"github.com/wsddn/go-ecdh"
+	"golang.org/x/crypto/pbkdf2"
+	"golang.org/x/text/unicode/norm"
 )
 
 const (
@@ -42,6 +44,8 @@ const (
 	insMutuallyAuthenticate = 0x11
 	insPair                 = 0x12
 	insUnpair               = 0x13
+
+	pairingSalt = "Status Hardware Wallet Lite"
 )
 
 // SecureChannelSession enables secure communication with a hardware wallet.
@@ -83,8 +87,8 @@ func NewSecureChannelSession(card *scard.Card, keyData []byte) (*SecureChannelSe
 }
 
 // Pair establishes a new pairing with the smartcard.
-func (s *SecureChannelSession) Pair(sharedSecret []byte) error {
-	secretHash := sha256.Sum256(sharedSecret)
+func (s *SecureChannelSession) Pair(pairingPassword []byte) error {
+	secretHash := pbkdf2.Key(norm.NFKD.Bytes([]byte(pairingPassword)), norm.NFKD.Bytes([]byte(pairingSalt)), 50000, 32, sha256.New)
 
 	challenge := make([]byte, 32)
 	if _, err := rand.Read(challenge); err != nil {
