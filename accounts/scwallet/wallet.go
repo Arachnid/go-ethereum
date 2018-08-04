@@ -42,10 +42,10 @@ import (
 	"github.com/ethereum/go-ethereum/log"
 )
 
-// ErrPUKNeeded is returned if opening the smart card requires pairing with a PUK
-// code. In this case, the calling application should request user input to enter
-// the PUK and send it back.
-var ErrPUKNeeded = errors.New("smartcard: puk needed")
+// ErrPairingPasswordNeeded is returned if opening the smart card requires pairing with a pairing
+// password. In this case, the calling application should request user input to enter
+// the pairing password and send it back.
+var ErrPairingPasswordNeeded = errors.New("smartcard: pairing password needed")
 
 // ErrPINNeeded is returned if opening the smart card requires a PIN code. In
 // this case, the calling application should request user input to enter the PIN
@@ -297,7 +297,7 @@ func (w *Wallet) Status() (string, error) {
 
 	// If the card is not paired, we can only wait
 	if !w.session.paired() {
-		return "Unpaired, waiting for PUK", nil
+		return "Unpaired, waiting for pairing password", nil
 	}
 	// Yay, we have an encrypted session, retrieve the actual status
 	status, err := w.session.walletStatus()
@@ -347,9 +347,9 @@ func (w *Wallet) Open(passphrase string) error {
 			}
 			// Pairing still ok, fall through to PIN checks
 		} else {
-			// If no passphrase was supplied, request the PUK from the user
+			// If no passphrase was supplied, request the PAIRING_PASSWORD from the user
 			if passphrase == "" {
-				return ErrPUKNeeded
+				return ErrPairingPasswordNeeded
 			}
 			// Attempt to pair the smart card with the user supplied PUK
 			if err := w.pair([]byte(passphrase)); err != nil {
